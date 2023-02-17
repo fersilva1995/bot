@@ -204,6 +204,7 @@ with open('data.csv', 'w', encoding='utf8') as file:
     
         last_index = len(inputs["close"]) -1
         actual_value = inputs["close"][last_index]
+        open_value = inputs["open"][last_index]
         actual_candle_size = round(inputs["close"][last_index] - inputs["open"][last_index], 5)
         ema_values = {
             'EMA200': EMA_values( inputs, 200),
@@ -337,11 +338,18 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
         if(sequence['result'] >= 9):
             all_win = True
-        if(sequence['result'] > 6):
+        if(sequence['result'] >= 5):
             if(sequence['operation'] == "decreasing"):
                 points = points + 1
             else:
                 points = points - 1
+
+        elephant = ((actual_value*100)/open_value) - 100
+
+        if(elephant >= 0.05):
+            points = points + 2
+        elif(elephant <= -0.05):
+            points = points -2
 
       
         last_input = inputs
@@ -361,6 +369,7 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
         
         print(sequence)
+        print(elephant)
         print("ema_100_status", ema_100_status)
         print("ema_200_status", ema_200_status)
         print("GOAL", goal)
