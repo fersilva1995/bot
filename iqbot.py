@@ -5,6 +5,14 @@ import numpy as np
 import statistics
 import datetime
 import csv
+import socket
+import sys
+from playsound import playsound
+
+
+
+TCP_IP = '127.0.0.1'
+TCP_PORT = 11000
 
 
 max_min_day={ "max_points": [], "min_points": []}
@@ -14,8 +22,8 @@ max_min_months={ "max_points": [], "min_points": []}
 rsi_top = 90
 rsi_bottom = 10
 
-ema_100_duration = 360
-ema_200_duration = 360
+ema_100_duration = 90
+ema_200_duration = 90
 ema_100_lower_counter = 0
 ema_100_upper_counter = 0
 ema_200_lower_counter = 0
@@ -63,12 +71,27 @@ def rsi_line(inputs, period):
     rsi = RSI(rsi_inputs, timeperiod=period)
     return rsi[len(rsi) - 1]
 
-def EMA_values(indicators):
-    return {
-        'EMA200': indicators[23]['value'],
-        'EMA100': indicators[21]['value'],
-        'EMA50': indicators[19]['value'],
+#def EMA_values(indicators):
+#    return {
+#        'EMA200': indicators[23]['value'],
+#        'EMA100': indicators[21]['value'],
+#        'EMA50': indicators[19]['value'],
+#    }
+
+def EMA_values( inputs, period):
+    inputs_len = len(inputs["open"])
+    ema_adjust = 0
+    ema_inputs = {
+        'open': np.array(inputs["open"][inputs_len - (period + ema_adjust):inputs_len - ema_adjust]),
+        'high': np.array(inputs["high"][inputs_len - (period + ema_adjust):inputs_len - ema_adjust]),
+        'low': np.array(inputs["low"][inputs_len - (period + ema_adjust):inputs_len - ema_adjust]),
+        'close': np.array(inputs["close"][inputs_len - (period + ema_adjust):inputs_len - ema_adjust]),
+        'volume': np.array(inputs["volume"][inputs_len - (period + ema_adjust):inputs_len - ema_adjust])
     }
+
+    ema = EMA(ema_inputs, period)
+    return ema[len(ema)-1]
+
 
 def max_min_values(goal, candle_size, period, length, actual_value):
     end_from_time=time.time()
@@ -136,9 +159,16 @@ def count_last_types(inputs):
 
 Iq=IQ_Option("scolimoski1995@outlook.com","@Ipdpnm46")
 Iq.connect()
-goal="EURJPY"
+goal="GBPUSD"
+if(len(sys.argv) > 0):
+    goal=sys.argv[1]
+
 candle_size=60
-period=50
+period=250
+
+#s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#s.connect((TCP_IP, TCP_PORT))clea
+
 
 
 Iq.start_candles_stream(goal,candle_size,period)
@@ -150,7 +180,7 @@ with open('data.csv', 'w', encoding='utf8') as file:
     while True:
         points = 0
         candles=Iq.get_realtime_candles(goal,candle_size)
-        indicators = Iq.get_technical_indicators(goal)
+        #indicators = Iq.get_technical_indicators(goal)
         gain = []
         losses = []
         rsi = 0
@@ -175,7 +205,11 @@ with open('data.csv', 'w', encoding='utf8') as file:
         last_index = len(inputs["close"]) -1
         actual_value = inputs["close"][last_index]
         actual_candle_size = round(inputs["close"][last_index] - inputs["open"][last_index], 5)
-        ema_values = EMA_values(indicators)
+        ema_values = {
+            'EMA200': EMA_values( inputs, 200),
+            'EMA100': EMA_values( inputs, 100),
+            'EMA50': EMA_values( inputs, 50),
+        }
         rsi = rsi_line(inputs, 7)
 
         
@@ -203,10 +237,18 @@ with open('data.csv', 'w', encoding='utf8') as file:
         if(ema_100_upper_counter >= ema_100_duration):
             ema_100_upper_active = False
             ema_100_upper_counter = 0
+            if(actual_value < ema_values['EMA100']):
+                ema_100_status = "lower"
+            elif(actual_value > ema_values['EMA100']):
+                ema_100_status = "upper"
         
         if(ema_100_lower_counter >= ema_100_duration):
             ema_100_lower_active = False
             ema_100_lower_counter = 0
+            if(actual_value < ema_values['EMA100']):
+                ema_100_status = "lower"
+            elif(actual_value > ema_values['EMA100']):
+                ema_100_status = "upper"
 
         if(ema_100_upper_active):
             points = points + 1
@@ -217,26 +259,34 @@ with open('data.csv', 'w', encoding='utf8') as file:
             ema_100_lower_counter = ema_100_lower_counter + 1
 
         if(ema_200_status == "unknown"):
-            if(actual_value < ema_values['EMA100']):
+            if(actual_value < ema_values['EMA200']):
                 ema_200_status = "lower"
-            elif(actual_value > ema_values['EMA100']):
+            elif(actual_value > ema_values['EMA200']):
                 ema_200_status = "upper"
         elif(ema_200_status == "lower"):
-            if(actual_value > ema_values['EMA100']):
+            if(actual_value > ema_values['EMA200']):
                 if(ema_200_upper_counter == 0):
                     ema_200_upper_active = True
         elif(ema_200_status == "upper"):
-            if(actual_value < ema_values['EMA100']):
+            if(actual_value < ema_values['EMA200']):
                 if(ema_200_lower_counter == 0):
                     ema_200_lower_active = True
 
         if(ema_200_upper_counter >= ema_200_duration):
             ema_200_upper_active = False
             ema_200_upper_counter = 0
+            if(actual_value < ema_values['EMA200']):
+                ema_200_status = "lower"
+            elif(actual_value > ema_values['EMA200']):
+                ema_200_status = "upper"
         
         if(ema_200_lower_counter >= ema_200_duration):
             ema_200_lower_active = False
             ema_200_lower_counter = 0
+            if(actual_value < ema_values['EMA200']):
+                ema_200_status = "lower"
+            elif(actual_value > ema_values['EMA200']):
+                ema_200_status = "upper"
 
         if(ema_200_upper_active):
             points = points + 1
@@ -249,22 +299,24 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
         sequence = count_last_types(inputs)
 
-
+        
         
         if(len(max_min_month["max_points"]) == 0):
             max_min_months = (max_min_values(goal, 2592000, 6, 3, actual_value))
             max_min_month = (max_min_values(goal, 86400, 30, 3, actual_value))
             max_min_day = (max_min_values(goal, 60, 1440, 3, actual_value))
         else:
-            for element in max_min_month["max_points"]:
-                if(actual_value >= element):
+            for counter in range(0, len(max_min_month["max_points"])):
+                element = max_min_month["max_points"][counter]
+                if(actual_value > element):
                     points = points + 2
-                    element = actual_value
+                    max_min_month["max_points"][counter] = actual_value
 
-            for element in max_min_month["min_points"]:
-                if(actual_value <= element):
+            for counter in range(0, len(max_min_month["min_points"])):
+                element = max_min_month["min_points"][counter]
+                if(actual_value < element):
                     points = points - 2
-                    element = actual_value
+                    max_min_month["min_points"][counter] = actual_value
 
 
         bolinger_band_7 = bolinger_band(inputs, 7, 2.4)
@@ -309,15 +361,22 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
         
         print(sequence)
+        print("ema_100_status", ema_100_status)
+        print("ema_200_status", ema_200_status)
+        print("GOAL", goal)
         print("POINTS", points)
         print("\n")
 
 
+
         if(points >= 3):
             print("DESCE")
+           
         elif(points <= -3):
             print("SOBE")
+ 
         data = [datetime.datetime.now(), points, actual_value, rsi, bolinger_band_7['lower'], bolinger_band_7['upper'], bolinger_band_21['lower'], bolinger_band_21['upper'], ema_values['EMA100'], ema_values['EMA200'],''.join(str(x) for x in max_min_months['max_points']), ''.join(str(x) for x in max_min_months['min_points']), ''.join(str(x) for x in max_min_month['max_points']), ''.join(str(x) for x in max_min_month['min_points']),''.join(str(x) for x in max_min_day['max_points']), ''.join(str(x) for x in max_min_day['min_points'])],
+        #s.send(str.encode(str(actual_value)))
         writer.writerow(data)
         time.sleep(1)
 
