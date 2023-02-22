@@ -12,6 +12,7 @@ class RSI_calc():
         self.period = period
         self.points = 0
         self.inputs = []
+        self.rsi = 0
 
 
     def get_rsi(self):
@@ -33,13 +34,13 @@ class RSI_calc():
             }
             rsi_values = RSI(rsi_inputs, timeperiod=self.period)
             rsi = rsi_values[len(rsi_values) - 1]
+            self.rsi = rsi
 
         return rsi, status
     
     def get_points(self):
         while True:
             rsi, status = self.get_rsi()
-            print("RSI:" , round(rsi,4))
             
             if(status):
                 if(rsi >= self.rsi_top):

@@ -1,9 +1,13 @@
 import numpy as np
-from talib.abstract import *
 import statistics
+import time
+from threading import Thread
+from talib.abstract import *
 
 class Bolinger_calc:
     def __init__(self, multiplicator, period):
+        self.thread = Thread(target=self.get_points)
+        self.thread.start()
         self.multiplicator = multiplicator
         self.period = period
         self.points = 0
@@ -48,17 +52,23 @@ class Bolinger_calc:
         return bolinger, status
 
     def get_points(self):
-        last_index = len(self.inputs["close"]) -1
-        actual_value = self.inputs["close"][last_index]
-        bolinger, status = self.get_bolinger()
+        while True:
+            bolinger, status = self.get_bolinger()
 
-        if(status):
-            if(actual_value >= bolinger['upper']):
-                points = points + 1
-            elif(actual_value <= bolinger['lower']):
-                points = points - 1
+            if(status):
+                last_index = len(self.inputs["close"]) -1
+                actual_value = self.inputs["close"][last_index]
+                if(actual_value >= bolinger['upper']):
+                    self.points = self.points + 1
+                elif(actual_value <= bolinger['lower']):
+                    self.points = self.points - 1
 
-            if(actual_value >= bolinger['upper']):
-                points = points + 1
-            elif(actual_value <= bolinger['lower']):
-                points = points - 1
+                if(actual_value >= bolinger['upper']):
+                    self.points = self.points + 1
+                elif(actual_value <= bolinger['lower']):
+                    self.oints = self.points - 1
+
+            time.sleep(0.5)
+    
+    def set_inputs(self, inputs):
+        self.inputs = inputs

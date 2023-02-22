@@ -46,7 +46,7 @@ last_input = []
 
 Iq=IQ_Option("scolimoski1995@outlook.com","@Ipdpnm46")
 Iq.connect()
-Iq.change_balance("REAL")
+#Iq.change_balance("REAL")
 goal="GBPUSD"
 candle_size=60
 period=250
@@ -360,8 +360,8 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
       
         #last_input = inputs
-        #print(bolinger_band_7)
-        #print(bolinger_band_21)
+        print(bolinger_band_7)
+        print(bolinger_band_21)
         #print("rsi:", rsi)
         #print(ema_values)
         #print("crescimento da vela", actual_candle_size)
