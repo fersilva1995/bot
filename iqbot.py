@@ -22,8 +22,14 @@ max_min_months={ "max_points": [], "min_points": []}
 rsi_top = 90
 rsi_bottom = 10
 
-ema_100_duration = 90
-ema_200_duration = 90
+operate = True
+ACTION="put"#"call" or "put"
+buy = False
+buy_step = 0
+buy_duration = 100
+
+ema_100_duration = 180
+ema_200_duration = 180
 ema_100_lower_counter = 0
 ema_100_upper_counter = 0
 ema_200_lower_counter = 0
@@ -37,6 +43,17 @@ ema_200_status = "unknown"
 all_win = False
 
 last_input = []
+
+Iq=IQ_Option("scolimoski1995@outlook.com","@Ipdpnm46")
+Iq.connect()
+Iq.change_balance("REAL")
+goal="GBPUSD"
+candle_size=60
+period=250
+buy_time = time.time()
+duration = 0
+buy_value = 0
+double = False
 
 
 def bolinger_band(inputs, period, multiplicator):
@@ -157,14 +174,10 @@ def count_last_types(inputs):
     }
     
 
-Iq=IQ_Option("scolimoski1995@outlook.com","@Ipdpnm46")
-Iq.connect()
-goal="GBPUSD"
+
 if(len(sys.argv) > 0):
     goal=sys.argv[1]
 
-candle_size=60
-period=250
 
 #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #s.connect((TCP_IP, TCP_PORT))clea
@@ -180,7 +193,6 @@ with open('data.csv', 'w', encoding='utf8') as file:
     while True:
         points = 0
         candles=Iq.get_realtime_candles(goal,candle_size)
-        #indicators = Iq.get_technical_indicators(goal)
         gain = []
         losses = []
         rsi = 0
@@ -209,7 +221,6 @@ with open('data.csv', 'w', encoding='utf8') as file:
         ema_values = {
             'EMA200': EMA_values( inputs, 200),
             'EMA100': EMA_values( inputs, 100),
-            'EMA50': EMA_values( inputs, 50),
         }
         rsi = rsi_line(inputs, 7)
 
@@ -322,8 +333,6 @@ with open('data.csv', 'w', encoding='utf8') as file:
 
         bolinger_band_7 = bolinger_band(inputs, 7, 2.4)
         bolinger_band_21 = bolinger_band(inputs, 21, 3.6)
-        #actual_bolinger_band_7 = bolinger_band(inputs, 7, 2.4)
-        #actual_bolinger_band_21 = bolinger_band(inputs, 21, 3.6)
 
         if(actual_value >= bolinger_band_7['upper']):
             points = points + 1
@@ -336,13 +345,11 @@ with open('data.csv', 'w', encoding='utf8') as file:
             points = points - 1
 
 
-        if(sequence['result'] >= 9):
-            all_win = True
-        if(sequence['result'] >= 5):
+        if(sequence['result'] >= 8):
             if(sequence['operation'] == "decreasing"):
-                points = points + 1
+                points = points - 2
             else:
-                points = points - 1
+                points = points + 2 
 
         elephant = ((actual_value*100)/open_value) - 100
 
@@ -352,41 +359,104 @@ with open('data.csv', 'w', encoding='utf8') as file:
             points = points -2
 
       
-        last_input = inputs
-        print(bolinger_band_7)
-        print(bolinger_band_21)
-        print("rsi:", rsi)
-        print(ema_values)
-        print("crescimento da vela", actual_candle_size)
-        print("ultimo valor:", actual_value)
+        #last_input = inputs
+        #print(bolinger_band_7)
+        #print(bolinger_band_21)
+        #print("rsi:", rsi)
+        #print(ema_values)
+        #print("crescimento da vela", actual_candle_size)
+       # print("ultimo valor:", actual_value)
     
                 
-        print(max_min_months)
-        print(max_min_month)
-        print(max_min_day)
+        #print(max_min_months)
+        #print(max_min_month)
+        #print(max_min_day)
 
 
 
         
-        print(sequence)
-        print(elephant)
-        print("ema_100_status", ema_100_status)
-        print("ema_200_status", ema_200_status)
+        #print(sequence)
+        #print(elephant)
+        #print("ema_100_status", ema_100_status)
+        #print("ema_200_status", ema_200_status)
         print("GOAL", goal)
         print("POINTS", points)
         print("\n")
 
 
+        #points = 8
 
         if(points >= 3):
+            playsound('tindeck_1.mp3')
             print("DESCE")
+            ACTION = "put"
+            buy = True
            
         elif(points <= -3):
+            playsound('tindeck_1.mp3')
             print("SOBE")
- 
-        data = [datetime.datetime.now(), points, actual_value, rsi, bolinger_band_7['lower'], bolinger_band_7['upper'], bolinger_band_21['lower'], bolinger_band_21['upper'], ema_values['EMA100'], ema_values['EMA200'],''.join(str(x) for x in max_min_months['max_points']), ''.join(str(x) for x in max_min_months['min_points']), ''.join(str(x) for x in max_min_month['max_points']), ''.join(str(x) for x in max_min_month['min_points']),''.join(str(x) for x in max_min_day['max_points']), ''.join(str(x) for x in max_min_day['min_points'])],
-        #s.send(str.encode(str(actual_value)))
-        writer.writerow(data)
+            ACTION = "call"
+            buy = True
+
+
+        if(buy):
+            if(buy_step == 0):
+                check,id=Iq.buy(5,goal,ACTION,1)
+                buy_time = time.time()
+                duration = Iq.get_remaning(1)
+                buy_value = actual_value
+                double = True
+                if check:
+                    print("!COMPRA!")
+                else:
+                    print("COMPRA FALHOU")
+            elif(buy_step >= buy_duration):
+                buy = False
+
+            buy_step = buy_step + 1
+            value = ((actual_value*100)/buy_value) - 100
+            remaining_time = (duration - int(time.time() - buy_time) -1)
+            if(double and remaining_time >= 0):
+                print(value)
+                if(ACTION == "put"):
+                    if(remaining_time <= 3):
+                        if(actual_value > buy_value):
+                            check,id=Iq.buy(12,goal,ACTION,1)
+                            double = False
+                            print("DOUBLE")
+                    if(value >= 0.01):
+                        check,id=Iq.buy(12,goal,ACTION,1)
+                        double = False
+                        print("DOUBLE")
+                if(ACTION == "call"):
+                    if(remaining_time <= 3):
+                        if(actual_value < buy_value):
+                            check,id=Iq.buy(12,goal,ACTION,1)
+                            double = False
+                            print("DOUBLE")
+                    if(value <= -0.01):
+                        check,id=Iq.buy(12,goal,ACTION,1)
+                        double = False
+                        print("DOUBLE")
+
+
+                
+         
+                   
+
+            
+        
+
+        if(buy == False):
+            buy_step = 0
+            print("COMPRA HABILITADA")
         time.sleep(1)
+
+        
+            
+ 
+        #data = [datetime.datetime.now(), points, actual_value, rsi, bolinger_band_7['lower'], bolinger_band_7['upper'], bolinger_band_21['lower'], bolinger_band_21['upper'], ema_values['EMA100'], ema_values['EMA200'],''.join(str(x) for x in max_min_months['max_points']), ''.join(str(x) for x in max_min_months['min_points']), ''.join(str(x) for x in max_min_month['max_points']), ''.join(str(x) for x in max_min_month['min_points']),''.join(str(x) for x in max_min_day['max_points']), ''.join(str(x) for x in max_min_day['min_points'])],
+        #s.send(str.encode(str(actual_value)))
+        #writer.writerow(data)
 
 
